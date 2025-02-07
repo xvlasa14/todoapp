@@ -11,6 +11,6 @@
 ### implementace
 **Technologie:**
   backend: C#/.NET Core, in-memory db
-  frontend: Blazor, Blazor State, Bootstrap
+  frontend: Blazor, Blazor State, Bootstrap 
 **Rozšíření:**
   Filtrování úkolů
