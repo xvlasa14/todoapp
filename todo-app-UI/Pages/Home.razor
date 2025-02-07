@@ -1,0 +1,105 @@
+﻿@page "/"
+@using todo_app_UI.Models
+@using todo_app_UI.Services
+@inject TodoService TodoService
+@inject TodoStateService TodoStateService
+
+<section class="container d-flex flex-column gap-2">
+    <h1 class="pt-5 center" id="todo-list-heading">Todos</h1>
+    <div class="d-flex flex-row gap-3" role="group" aria-labelledby="todo-list-heading">
+        <button @onclick="() => FilterTodos(null)"
+            class="btn btn-primary btn-light @((currentFilter == null ? "active" : ""))"
+            aria-pressed="@(currentFilter == null ? "true" : "false")" aria-label="Show all todos">
+            <span>All</span>
+        </button>
+        <button @onclick="() => FilterTodos(true)"
+            class="btn btn-secondary btn-med @((currentFilter == true ? "active" : ""))"
+            aria-pressed="@(currentFilter == true ? "true" : "false")" aria-label="Show completed todos">
+            <span>Done</span>
+        </button>
+        <button @onclick="() => FilterTodos(false)"
+            class="btn btn-secondary btn-dark @((currentFilter == false ? "active" : ""))"
+            aria-pressed="@(currentFilter == false ? "true" : "false")" aria-label="Show in-progress todos">
+            <span>In progress</span>
+        </button>
+    </div>
+
+    <ul class="d-flex flex-column px-0" role="list">
+        @foreach (var todo in filteredTodos) 
+        {
+            <li class="list-unstyled d-flex flex-row align-items-center justify-content-start border-bottom border-1 py-2"
+                role="listitem">
+                <input type="checkbox" checked="@(todo.IsCompleted)" @onchange="() => UpdateTodoCompletion(todo)"
+                    class="me-3" id="todo-@todo.Id" aria-label="Mark @todo.Title as done"/>
+                @todo.Title
+                <button @onclick="() => DeleteTodo(todo.Id)" class="btn btn-secondary btn-danger ms-auto"
+                    aria-label="Delete @todo.Title">
+                    Delete
+                </button>
+            </li>
+        }
+    </ul>
+
+    <EditForm Model="newTodo" OnValidSubmit="CreateNewTodo"
+        class="d-flex flex-row justify-content-center gap-1 position-relative"
+        aria-roledescription="form for adding new todos">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <InputText id="title" aria-label="Enter todo title" placeholder="Enter title" @bind-Value="newTodo.Title"
+            class="flex-grow-1 form-control" required />
+        <button type="submit" class="btn btn-primary" aria-label="Add new todo">Add Todo</button>
+    </EditForm>
+</section>
+
+@code {
+    private Todo newTodo = new Todo();
+    private bool? currentFilter = null;
+    private List<Todo> filteredTodos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var todos = await TodoService.GetTodos();
+        TodoStateService.Todos = todos;
+        FilterTodos(currentFilter);
+    }
+
+    private async Task CreateNewTodo()
+    {
+        newTodo.CreatedAt = DateTime.Now;
+        await TodoService.CreateTodo(newTodo);
+
+        var todos = await TodoService.GetTodos();
+        TodoStateService.Todos = todos;
+
+        newTodo = new Todo();
+        FilterTodos(currentFilter);
+    }
+
+    private void FilterTodos(bool? isCompleted)
+    {
+        currentFilter = isCompleted;
+        if (isCompleted == null)
+        {
+            filteredTodos = TodoStateService.Todos.ToList(); // Show all
+        }
+        else
+        {
+            filteredTodos = TodoStateService.Todos.Where(todo => todo.IsCompleted == isCompleted).ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task UpdateTodoCompletion(Todo todo)
+    {
+        await TodoService.ToggleTodoCompletion(todo);
+        FilterTodos(currentFilter);
+    }
+
+    private async Task DeleteTodo(Guid id)
+    {
+        await TodoService.DeleteTodo(id);
+        TodoStateService.Todos = TodoStateService.Todos.Where(t => t.Id != id).ToList();
+        FilterTodos(currentFilter);
+    }
+}
